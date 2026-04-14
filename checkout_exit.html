@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXIT-CHECK — Generell Checkout-app</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F6F9;--surface:#fff;--border:#D1D9E0;--bs:#B0BCC8;
+  --text:#1A2332;--muted:#4A5568;--l1:#D4500A;--l2:#1A6FB5;
+  --ok:#1A7A4A;--ok-bg:#E8F5EE;--ok-bd:#A3D4B5;
+  --err:#C0392B;--err-bg:#FDECEA;--err-bd:#F5A89A;
+  --lock:#6B7280;--lock-bg:#F1F3F5;--lock-bd:#9CA3AF;
+  --info-bg:#EBF4FD;--warn-bg:#FEF3E2;--warn:#92600A;--warn-bd:#F5C97A;
+  --pu:#7C3AAE;--pu-bg:#F3E8FF;--pu-bd:#C4B5FD;
+  --ta: #D4500A; /* teacher accent — overridden per teacher */
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);font-size:15px;min-height:100vh;}
+/* NAV */
+.nav{background:var(--surface);border-bottom:2px solid var(--border);padding:0 14px;display:flex;align-items:center;gap:2px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,0.07);flex-wrap:wrap;min-height:48px;}
+.logo{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;padding:10px 12px 10px 0;margin-right:6px;border-right:1px solid var(--border);white-space:nowrap;}
+.logo span{color:var(--l1);}
+.ntab{padding:10px 13px;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;transition:all 0.15s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;}
+.ntab.active{color:var(--ta);border-bottom-color:var(--ta);}
+.ntab:hover:not(.active){color:var(--text);}
+.teacher-strip{background:var(--ta);color:#fff;font-size:11px;font-family:'Syne',sans-serif;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;margin-left:4px;}
+.sync-badge{margin-left:auto;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;padding:0 4px;white-space:nowrap;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.dot.g{background:#1A7A4A;}.dot.r{background:#C0392B;}.dot.y{background:#D97706;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+/* PANELS */
+.panel{display:none;}.panel.active{display:block;}
+.inner{max-width:700px;margin:0 auto;padding:22px 16px 70px;}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.card.accent{border-left:4px solid var(--ta);}
+/* INPUTS */
+.field{margin-bottom:12px;}
+.field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:5px;}
+input[type=text],input[type=password],input[type=url],select,textarea{width:100%;background:var(--bg);border:2px solid var(--bs);border-radius:8px;padding:10px 12px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--l2);background:var(--info-bg);}
+textarea{resize:vertical;min-height:80px;}
+/* BUTTONS */
+.btn{background:var(--ta);color:#fff;border:none;border-radius:9px;padding:11px 20px;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all 0.15s;}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.btn-full{width:100%;margin-top:10px;padding:13px;}
+.btn-sec{background:var(--surface);border:2px solid var(--bs);color:var(--text);}
+.btn-sec:hover{border-color:var(--ta);color:var(--ta);}
+.btn-sm{padding:7px 12px;font-size:12px;}
+.btn-ok{background:var(--ok);}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+/* FEEDBACK */
+.fb{padding:12px 14px;border-radius:8px;margin-top:10px;font-size:13px;font-weight:500;line-height:1.55;}
+.fb.ok{background:var(--ok-bg);color:#0E5C30;border:1px solid var(--ok-bd);}
+.fb.err{background:var(--err-bg);color:#9B2010;border:1px solid var(--err-bd);}
+.fb.info{background:var(--info-bg);color:var(--l2);border:1px solid #A3C4E8;}
+.fb.warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-bd);}
+.fb strong{font-weight:700;display:block;margin-bottom:2px;}
+.hint-box{background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:6px;padding:7px 11px;margin-top:7px;font-size:12px;color:var(--warn);}
+/* GRID */
+.q-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+.qb{border-radius:8px;padding:9px 3px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.12s;text-align:center;border:2px solid var(--border);background:var(--bg);color:var(--text);line-height:1.2;}
+.qb:hover:not(.locked):not(.done-ok):not(.done-err){border-color:var(--l2);background:var(--info-bg);}
+.qb.selected{border-color:var(--ta);background:#FEF8F4;color:var(--ta);}
+.qb.done-ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok);}
+.qb.done-err{border-color:var(--err);background:var(--err-bg);color:var(--err);}
+.qb.locked{border-color:var(--lock-bd);background:var(--lock-bg);color:var(--lock);cursor:not-allowed;font-size:11px;}
+.locked-banner{background:var(--warn-bg);border:2px solid var(--warn-bd);border-radius:10px;padding:13px 15px;margin-bottom:13px;display:none;}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.chip{background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ok);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;}
+.chip:hover{background:var(--ok);color:#fff;}
+/* QUESTION DISPLAY */
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;}
+.q-badge{display:inline-block;background:var(--ta);color:#fff;font-family:'Syne',sans-serif;font-size:11px;font-weight:800;padding:3px 11px;border-radius:20px;margin-bottom:8px;}
+.student-hi{background:var(--info-bg);border:1px solid #A3C4E8;border-radius:7px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:var(--l2);font-weight:600;}
+.q-topic-lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;}
+.q-txt{font-size:17px;font-weight:600;line-height:1.45;margin-bottom:14px;}
+.prog-wrap{display:flex;align-items:center;gap:9px;margin-bottom:12px;}
+.prog-track{flex:1;background:var(--border);border-radius:5px;height:6px;}
+.prog-fill{height:6px;border-radius:5px;background:var(--ok);transition:width 0.4s;}
+.summary{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:14px;text-align:center;}
+.score-c{width:80px;height:80px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 10px;}
+.score-c.pass{background:var(--ok-bg);border:4px solid var(--ok);}
+.score-c.fail{background:var(--err-bg);border:4px solid var(--err);}
+.score-pct{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;}
+.score-c.pass .score-pct{color:var(--ok);}
+.score-c.fail .score-pct{color:var(--err);}
+/* TEACHER OVERVIEW */
+.ov-table{width:100%;border-collapse:collapse;}
+.ov-table th{background:var(--bg);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;padding:7px 9px;border-bottom:2px solid var(--border);text-align:left;}
+.ov-table td{padding:8px 9px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle;}
+.ov-table tr:last-child td{border-bottom:none;}
+.sbadge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;font-family:'Syne',sans-serif;}
+.sb-ok{background:var(--ok-bg);color:var(--ok);}
+.sb-err{background:var(--err-bg);color:var(--err);}
+.sb-wait{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.sb-active{background:var(--info-bg);color:var(--l2);}
+/* ACCOUNT LOGIN */
+.auth-wrap{max-width:420px;margin:60px auto;padding:0 16px;}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.08);}
+.auth-icon{font-size:40px;text-align:center;margin-bottom:12px;}
+.auth-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;}
+.auth-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
+/* ACCOUNT LIST */
+.account-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.account-row:last-child{border-bottom:none;}
+.acc-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:#fff;flex-shrink:0;}
+.acc-name{font-weight:600;font-size:14px;}
+.acc-subject{font-size:12px;color:var(--muted);}
+.acc-url{font-size:11px;color:var(--l2);word-break:break-all;margin-top:2px;}
+/* AI */
+.ai-box{background:linear-gradient(135deg,var(--pu-bg),#FAF5FF);border:2px solid var(--pu-bd);border-radius:12px;padding:18px 20px;margin-bottom:14px;}
+.ai-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;color:var(--pu);margin-bottom:4px;}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--pu-bd);border-top-color:var(--pu);border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:5px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.qprev{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 13px;margin-bottom:7px;}
+.qprev-n{font-family:'Syne',sans-serif;font-size:11px;font-weight:800;color:var(--ta);margin-bottom:2px;}
+.qprev-q{font-size:13px;font-weight:600;margin-bottom:3px;}
+.qprev-kw{font-size:11px;color:var(--ok);}
+/* STUDENT LIST */
+.stu-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+.stu-row:last-child{border-bottom:none;}
+.stu-num{width:30px;height:30px;border-radius:7px;background:var(--bg);border:2px solid var(--ta);font-family:'Syne',sans-serif;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;color:var(--ta);flex-shrink:0;}
+.file-drop{border:2px dashed var(--bs);border-radius:9px;padding:16px;text-align:center;cursor:pointer;background:var(--bg);margin-bottom:10px;}
+.file-drop:hover{border-color:var(--l2);}
+.file-drop input[type=file]{display:none;}
+/* COLOR SWATCHES */
+.swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.swatch{width:28px;height:28px;border-radius:8px;cursor:pointer;border:3px solid transparent;transition:all 0.15s;}
+.swatch.active{border-color:var(--text);transform:scale(1.1);}
+/* SECTION TABS */
+.sec-tabs{display:flex;gap:3px;margin-bottom:16px;background:var(--bg);border-radius:10px;padding:4px;}
+.sec-tab{padding:8px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;color:var(--muted);border:none;background:none;transition:all 0.15s;}
+.sec-tab.active{background:var(--surface);color:var(--ta);box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+/* PRINT */
+.slips{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.slip{background:var(--surface);border:2px solid var(--border);border-radius:8px;padding:12px 14px;page-break-inside:avoid;}
+.slip-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.slip-n{font-family:'Syne',sans-serif;font-size:11px;font-weight:800;color:var(--ta);}
+.slip-tp{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;}
+.slip-q{font-size:12px;font-weight:600;line-height:1.4;margin-bottom:7px;}
+.slip-hr{border-top:1px solid var(--border);margin:4px 0;}
+.slip-wr{height:30px;}
+@media print{.nav,#teacherPanel,.btn-row{display:none!important;}.slips{grid-template-columns:repeat(2,1fr);}body{background:white;}}
+@media(max-width:480px){.q-grid{grid-template-columns:repeat(5,1fr);}}
+</style>
+</head>
+<body>
+
+<div class="nav" id="mainNav">
+  <div class="logo">EXIT<span>CHECK</span></div>
+  <button class="ntab active" onclick="showTab('student',this)">🎯 Checkout</button>
+  <button class="ntab" onclick="showTab('teacher',this)" id="teacherNavBtn">👩‍🏫 Lärare</button>
+  <button class="ntab" onclick="showTab('print',this)">🖨️ Lappar</button>
+  <div id="teacherStrip" style="display:none"></div>
+  <div class="sync-badge"><span class="dot" id="syncDot"></span><span id="syncTxt">ej ansluten</span></div>
+</div>
+
+<!-- ══════════ STUDENT ════════════════════════════════════════ -->
+<div id="studentPanel" class="panel active">
+  <div class="inner">
+    <div id="noTeacherWarn" class="fb warn" style="display:none;margin-bottom:14px">
+      <strong>⚠️ Ingen lärare vald</strong>
+      Be din lärare om rätt länk — den ser ut som: <code>checkout_exit.html?t=lärarnamn</code>
+    </div>
+    <div style="text-align:center;padding:16px 0 12px">
+      <h1 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800" id="studentTitle">EXIT-CHECK</h1>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">Välj ditt nummer → skriv svaret → tryck Kontrollera</p>
+    </div>
+    <div class="locked-banner" id="lockedBanner">
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--warn);margin-bottom:6px">🔒 Nummer <span id="lockedNum"></span> är redan upptaget!</div>
+      <div style="font-size:12px;color:var(--warn)">Lediga nummer — klicka direkt:</div>
+      <div class="chips" id="freeChips"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:7px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Välj ditt nummer</span>
+        <div style="display:flex;gap:8px;font-size:11px;color:var(--muted)">
+          <span>⬜ Ledigt</span><span>🔒 Taget</span><span style="color:var(--ok)">✅ Klart</span>
+        </div>
+      </div>
+      <div class="q-grid" id="qGrid"></div>
+    </div>
+    <div id="qArea" style="display:none">
+      <div class="prog-wrap">
+        <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        <div style="font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap" id="progLbl">0 besvarat</div>
+      </div>
+      <div class="q-card">
+        <div class="q-badge" id="qBadge">Fråga 1</div>
+        <div id="studentHi" class="student-hi" style="display:none"></div>
+        <div class="q-topic-lbl" id="qTopic"></div>
+        <div class="q-txt" id="qTxt"></div>
+        <div class="field"><label>Ditt svar</label><textarea id="answerInput" placeholder="Skriv ditt svar här..." oninput="document.getElementById('sFb').innerHTML=''"></textarea></div>
+        <button class="btn btn-full" onclick="checkAnswer()">KONTROLLERA SVAR ✓</button>
+        <div id="sFb"></div>
+        <button class="btn btn-sec btn-full" style="margin-top:8px" onclick="resetQ()">← Välj annat nummer</button>
+      </div>
+    </div>
+    <div id="summaryArea" style="display:none">
+      <div class="summary">
+        <div id="scoreC" class="score-c"></div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800" id="sumTitle"></h2>
+        <p style="color:var(--muted);margin-top:6px;font-size:13px" id="sumText"></p>
+        <button class="btn" style="margin-top:13px" onclick="location.reload()">🔄 Börja om</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TEACHER PANEL ══════════════════════════════════ -->
+<div id="teacherPanel" class="panel">
+
+  <!-- CHOOSE ACCOUNT / LOGIN -->
+  <div id="authSection">
+    <div class="auth-wrap">
+      <div id="loginView">
+        <div class="auth-card">
+          <div class="auth-icon">🔐</div>
+          <div class="auth-title">Lärare — logga in</div>
+          <div class="auth-sub">Välj ditt konto och ange lösenord.</div>
+          <div class="field">
+            <label>Välj konto</label>
+            <select id="loginSelect"><option value="">— välj —</option></select>
+          </div>
+          <div class="field"><label>Lösenord</label><input type="password" id="loginPw" onkeydown="if(event.key==='Enter')doLogin()"></div>
+          <button class="btn btn-full" onclick="doLogin()">LOGGA IN</button>
+          <div id="loginErr" class="fb err" style="display:none;margin-top:10px"></div>
+          <div style="text-align:center;margin-top:14px">
+            <button class="btn-link" onclick="showView('createView')" style="background:none;border:none;color:var(--l2);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Skapa nytt lärarkonto</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="createView" style="display:none">
+        <div class="auth-card">
+          <div class="auth-icon">✨</div>
+          <div class="auth-title">Skapa lärarkonto</div>
+          <div class="auth-sub">Kontot är lokalt (och synkas till Firebase om anslutet).</div>
+          <div class="field"><label>Användarnamn (ingen mellanslag)</label><input type="text" id="cUser" placeholder="t.ex. thomas_samhall"></div>
+          <div class="field"><label>Ditt namn</label><input type="text" id="cName" placeholder="Thomas Hedlund-Leijon"></div>
+          <div class="field"><label>Kurs / Ämne</label><input type="text" id="cSubject" placeholder="t.ex. Samhällskunskap 1a"></div>
+          <div class="field">
+            <label>Färg</label>
+            <div class="swatches" id="colorSwatches"></div>
+          </div>
+          <div class="field"><label>Lösenord</label><input type="password" id="cPw"></div>
+          <div class="field"><label>Bekräfta lösenord</label><input type="password" id="cPw2"></div>
+          <button class="btn btn-full" style="background:var(--pu)" onclick="createAccount()">SKAPA KONTO</button>
+          <div id="createErr" class="fb err" style="display:none;margin-top:10px"></div>
+          <div style="text-align:center;margin-top:12px">
+            <button onclick="showView('loginView')" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">← Tillbaka till inloggning</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEACHER DASHBOARD -->
+  <div id="dashSection" style="display:none">
+    <div style="background:var(--ta);color:#fff;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800" id="dashTitle">Lärardashboard</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff" onclick="copyStudentLink()">📋 Kopiera elevlänk</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff" onclick="manageAccounts()">👥 Konton</button>
+        <button class="btn btn-sm" style="background:rgba(0,0,0,0.2);border:none;color:#fff" onclick="doLogout()">🚪 Logga ut</button>
+      </div>
+    </div>
+    <div class="inner" style="padding-top:18px">
+      <div class="sec-tabs">
+        <button class="sec-tab active" onclick="showSec('overview',this)">📊 Realtid</button>
+        <button class="sec-tab" onclick="showSec('students',this)">📋 Klasslista</button>
+        <button class="sec-tab" onclick="showSec('aiGen',this)">🤖 AI-frågor</button>
+        <button class="sec-tab" onclick="showSec('dsettings',this)">⚙️ Inställningar</button>
+      </div>
+
+      <!-- OVERVIEW -->
+      <div id="sec-overview">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+            <div id="ovStats" style="font-size:12px;color:var(--muted)"></div>
+            <div class="btn-row" style="margin:0">
+              <button class="btn btn-sm btn-sec" onclick="resetAll()">🗑️ Frigör alla nummer</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="ov-table" id="ovTable">
+              <thead><tr><th>Nr</th><th>Elev</th><th>Ämne/Fråga</th><th>Status</th></tr></thead>
+              <tbody id="ovBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- STUDENTS -->
+      <div id="sec-students" style="display:none">
+        <div class="card">
+          <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:800;margin-bottom:4px">📋 Elevlista & nummerfördelning</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Klistra in eller ladda upp en lista med elevnamn (ett per rad). Numren fördelas slumpmässigt. Eleven ser sitt namn när de väljer sitt nummer.</p>
+          <div class="file-drop" onclick="document.getElementById('stuFile').click()">
+            <input type="file" id="stuFile" accept=".txt" onchange="loadStuFile(this)">
+            <div style="font-size:12px;color:var(--muted)">📂 Ladda upp .txt-fil</div>
+          </div>
+          <textarea id="stuInput" style="min-height:120px;margin-bottom:10px" placeholder="Anna Svensson&#10;Erik Johansson&#10;Maria Lindqvist&#10;..."></textarea>
+          <div class="btn-row">
+            <button class="btn" onclick="assignNumbers()">🔀 Fördela nummer</button>
+            <button class="btn btn-sec" onclick="clearStudents()">Rensa</button>
+          </div>
+          <div id="stuFb" style="margin-top:8px"></div>
+        </div>
+        <div class="card" id="assignCard" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800">Nummerfördelning</div>
+            <div class="btn-row" style="margin:0">
+              <button class="btn btn-sm btn-ok" onclick="saveAssignment()">💾 Spara</button>
+              <button class="btn btn-sm btn-sec" onclick="window.print()">🖨️ Skriv ut</button>
+            </div>
+          </div>
+          <div id="assignList"></div>
+        </div>
+      </div>
+
+      <!-- AI GEN -->
+      <div id="sec-aiGen" style="display:none">
+        <div class="ai-box">
+          <div class="ai-title">🤖 Generera frågor från eget material</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Klistra in valfritt undervisningsmaterial. AI:n genererar exit-check-frågor med nyckelord och ledtrådar.</div>
+          <div class="file-drop" onclick="document.getElementById('matFile').click()">
+            <input type="file" id="matFile" accept=".txt" onchange="loadMatFile(this)">
+            <div style="font-size:12px;color:var(--muted)">📂 Ladda upp .txt-fil med material</div>
+          </div>
+          <textarea id="matInput" style="min-height:130px;margin-bottom:10px" placeholder="Klistra in undervisningsmaterial — föreläsningsanteckningar, lärobokstext, sammanfattning..."></textarea>
+          <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+            <div class="field" style="margin:0;flex:0 0 auto">
+              <label>Antal frågor</label>
+              <select id="numQSel" style="width:auto;padding:9px 12px">
+                <option value="10">10</option><option value="15">15</option>
+                <option value="20">20</option><option value="25" selected>25</option><option value="30">30</option>
+              </select>
+            </div>
+            <button class="btn" style="background:var(--pu)" onclick="generateQ()" id="genBtn">🤖 GENERERA</button>
+          </div>
+        </div>
+        <div id="genStatus" class="fb info" style="display:none"><span class="spinner"></span><strong>AI arbetar...</strong>Genererar frågor. 10–20 sekunder.</div>
+        <div id="genErr" class="fb err" style="display:none"></div>
+        <div id="prevSec" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:800">Förhandsgranskning</div>
+            <div class="btn-row" style="margin:0">
+              <button class="btn btn-ok btn-sm" onclick="activateQ()">✅ Aktivera</button>
+              <button class="btn btn-sec btn-sm" onclick="generateQ()">🔄 Ny variant</button>
+            </div>
+          </div>
+          <div id="prevList"></div>
+          <div id="actFb" style="margin-top:8px"></div>
+        </div>
+        <div class="card">
+          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;margin-bottom:6px">Aktiva frågor</div>
+          <div id="activeQInfo" style="font-size:12px;color:var(--muted)"></div>
+          <div class="btn-row"><button class="btn btn-sm btn-sec" onclick="resetToDefault()">↩ Återställ till standardfrågor</button></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="sec-dsettings" style="display:none">
+        <div class="card accent">
+          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;margin-bottom:12px">📡 Firebase Realtime Database</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">
+            <a href="https://console.firebase.google.com" target="_blank" style="color:var(--l2);font-weight:600">console.firebase.google.com</a> → Skapa projekt → Build → Realtime Database → Create Database → "Start in test mode" → kopiera URL.
+          </div>
+          <input type="url" id="fbUrlInput" placeholder="https://ditt-projekt-default-rtdb.firebaseio.com">
+          <div id="fbUrlSt" style="font-size:12px;margin-top:4px"></div>
+          <div class="btn-row">
+            <button class="btn btn-sm" onclick="saveFbUrl()">SPARA & ANSLUT</button>
+            <button class="btn btn-sm btn-sec" onclick="clearFbUrl()">Ta bort</button>
+          </div>
+        </div>
+        <div class="card" style="background:var(--pu-bg);border:1px solid var(--pu-bd)">
+          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--pu);margin-bottom:10px">👤 Mitt konto</div>
+          <div id="myAccountInfo" style="font-size:13px;color:var(--muted);margin-bottom:12px"></div>
+          <div class="field"><label>Byt lösenord</label><input type="password" id="newPw" placeholder="Nytt lösenord..."></div>
+          <button class="btn btn-sm" style="background:var(--pu)" onclick="changePw()">BYTA LÖSENORD</button>
+          <div id="pwChSt" style="font-size:12px;margin-top:5px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCOUNTS MANAGEMENT -->
+  <div id="accountsMgmt" style="display:none">
+    <div class="inner">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800">👥 Alla lärarkonton</div>
+        <button class="btn btn-sm btn-sec" onclick="document.getElementById('accountsMgmt').style.display='none';document.getElementById('dashSection').style.display='block'">← Tillbaka</button>
+      </div>
+      <div class="card" id="accountsList"></div>
+      <div class="card" style="background:var(--err-bg);border-color:var(--err-bd)">
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--err);margin-bottom:6px">⚠️ Ta bort konto</div>
+        <div style="font-size:12px;color:var(--err);margin-bottom:10px">Tar bort kontot permanent. Kan inte ångras.</div>
+        <select id="delAccSelect" style="width:auto;margin-right:8px;margin-bottom:8px;padding:8px 12px;font-size:13px;background:var(--surface);border:2px solid var(--err-bd);border-radius:7px"></select>
+        <button class="btn btn-sm" style="background:var(--err)" onclick="deleteAccount()">RADERA KONTO</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PRINT ════════════════════════════════════════ -->
+<div id="printPanel" class="panel">
+  <div class="inner">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800">Utskriftslappar</div><div style="font-size:12px;color:var(--muted);margin-top:2px">En per elev. Klipp isär och dela ut.</div></div>
+      <button class="btn" onclick="window.print()">🖨️ Skriv ut</button>
+    </div>
+    <div class="slips" id="slipsGrid"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// CONSTANTS & DEFAULTS
+// ════════════════════════════════════════════════════════════
+const COLORS = ['#D4500A','#1A6FB5','#1A7A4A','#7C3AAE','#C0392B','#D97706','#0891B2','#BE185D','#374151','#065F46'];
+const DEFAULT_QS = [
+  {n:1,topic:"Lön & skatt",     q:"Vad kallas lönen du får på kontot, efter att skatt dragits?",                      kw:["nettolön","netto"],            hint:"'Netto' — efter skatt"},
+  {n:2,topic:"Lön & skatt",     q:"Vad kallas skatten arbetsgivaren drar direkt varje månad?",                         kw:["a-skatt","askatt","preliminärskatt"], hint:"Börjar på A"},
+  {n:3,topic:"Lön & skatt",     q:"Vad är kvarskatt?",                                                                 kw:["kvarskatt","mellanskillnad"],  hint:"För lite skatt dragen"},
+  {n:4,topic:"Lön & skatt",     q:"Hur kallas pengarna du får tillbaka om för mycket skatt dragits?",                  kw:["skatteåterbäring","återbäring"], hint:"Skatte...bäring"},
+  {n:5,topic:"Lön & skatt",     q:"Ungefär hur stor är kommunalskatten i procent?",                                    kw:["30","31","32","33"],           hint:"Ungefär en tredjedel"},
+  {n:6,topic:"Budget",          q:"Ge ett exempel på en fast utgift.",                                                  kw:["hyra","bolån","telefon","hemförsäkring"], hint:"Lika varje månad"},
+  {n:7,topic:"Budget",          q:"Vad kallas de pengar som är kvar efter fasta och rörliga utgifter?",                kw:["disponibelt","disponibel"],    hint:"Dis-po-ni-belt belopp"},
+  {n:8,topic:"Budget",          q:"Hur många månadslöner rekommenderas i ekonomisk buffert?",                          kw:["3","tre","6","sex"],           hint:"Minst 3, helst 6"},
+  {n:9,topic:"Budget",          q:"Ge ett exempel på en rörlig utgift.",                                               kw:["mat","kläder","nöje"],         hint:"Varierar månad till månad"},
+  {n:10,topic:"Budget",         q:"Vad är en ekonomisk buffert?",                                                      kw:["buffert","reserv","oväntad"],  hint:"Pengar för det oväntade"},
+  {n:11,topic:"Sparande",       q:"Vad är ett ISK?",                                                                   kw:["investeringssparkonto","aktier","fonder"], hint:"Aktier — schablonbeskattning"},
+  {n:12,topic:"Sparande",       q:"Vad innebär ränta-på-ränta?",                                                       kw:["ränta","växer","exponentiell"], hint:"Räntan växer på sig själv"},
+  {n:13,topic:"Sparande",       q:"Vilka tre delar ingår i svenska pensionssystemet?",                                  kw:["allmän","tjänste","privat"],   hint:"Allmän + tjänste + privat"},
+  {n:14,topic:"Försäkringar",   q:"Nämn två saker hemförsäkringen täcker.",                                            kw:["bohag","ansvar","rättsskydd"], hint:"Bohag, ansvar..."},
+  {n:15,topic:"Försäkringar",   q:"Vad är en premie?",                                                                 kw:["premie","kostnad","betalar"],  hint:"Vad du betalar för försäkringen"},
+  {n:16,topic:"Försäkringar",   q:"Vad är en självrisk?",                                                              kw:["självrisk","skada","andel"],   hint:"Din del vid skada"},
+  {n:17,topic:"Lån & kredit",   q:"Vad är effektiv ränta?",                                                            kw:["effektiv","avgifter","total"],  hint:"Ränta + ALLA avgifter"},
+  {n:18,topic:"Lån & kredit",   q:"Vad innebär amortering?",                                                           kw:["amortering","skulden","betala av"], hint:"Betala av på skulden"},
+  {n:19,topic:"Lån & kredit",   q:"Hur stor kontantinsats krävs vid bolån?",                                           kw:["15","femton","procent"],        hint:"15 procent"},
+  {n:20,topic:"Riksbanken",     q:"Vem bestämmer reporäntan i Sverige?",                                               kw:["riksbanken","centralbank"],    hint:"Riks-banken"},
+  {n:21,topic:"Riksbanken",     q:"Vad är Riksbankens inflationsmål per år?",                                          kw:["2","två","procent"],           hint:"2 procent per år"},
+  {n:22,topic:"Riksbanken",     q:"Vad händer med bolåneräntan när Riksbanken höjer reporäntan?",                      kw:["stiger","ökar","dyrare"],       hint:"Dyrare att låna"},
+  {n:23,topic:"Konsumenträtt",  q:"Hur länge har du reklamationsrätt i Sverige?",                                      kw:["3","tre","år"],                hint:"3 år lagstadgat"},
+  {n:24,topic:"Inflation",      q:"Lönen höjs 2% men inflationen är 5% — ökar eller minskar köpkraften?",             kw:["minskar","sjunker","reallön"], hint:"2 minus 5 = minus 3"},
+  {n:25,topic:"Jämställdhet",   q:"Nämn en orsak till att kvinnor har lägre pension än män.",                         kw:["lönegap","deltid","föräldraledighet"], hint:"Lönegap, deltid, föräldraledighet"},
+];
+
+// ════════════════════════════════════════════════════════════
+// MULTI-ACCOUNT SYSTEM
+// ════════════════════════════════════════════════════════════
+function loadAccounts() { try { return JSON.parse(localStorage.getItem('exitcheck_accounts')||'{}'); } catch { return {}; } }
+function saveAccounts(a) { localStorage.setItem('exitcheck_accounts', JSON.stringify(a)); }
+
+function getTeacherQS(username) {
+  try { return JSON.parse(localStorage.getItem(`qs_${username}`)||'null') || DEFAULT_QS; } catch { return DEFAULT_QS; }
+}
+function saveTeacherQS(username, qs) { localStorage.setItem(`qs_${username}`, JSON.stringify(qs)); }
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let FB_URL      = localStorage.getItem('fb_url') || '';
+let activeTeacher = null;   // username of logged-in teacher
+let activeAccounts = loadAccounts();
+const DATE_KEY  = new Date().toISOString().slice(0,10);
+
+// Per-student state
+let QS          = [...DEFAULT_QS];
+let taken       = {};
+let studentMap  = {};
+let answerMap   = {};
+let myNum       = null;
+let myResults   = {};
+let pollTimer   = null;
+let pendingAssign = null;
+let generatedQS   = null;
+let activeColor   = COLORS[0];
+let selectedColor = COLORS[0];
+
+// Teacher from URL param
+const urlParams = new URLSearchParams(location.search);
+const urlTeacher = urlParams.get('t');
+
+let bc = null;
+try { bc = new BroadcastChannel('exitcheck_v3'); bc.onmessage = e => { if(e.data) { taken=e.data.taken||taken; studentMap=e.data.students||studentMap; answerMap=e.data.answers||answerMap; refresh(); } }; } catch(_){}
+function bcast() { if(bc) bc.postMessage({taken,students:studentMap,answers:answerMap}); }
+
+// ── Firebase ──────────────────────────────────────────────────
+function fbPath(sub='') {
+  const prefix = urlTeacher || activeTeacher || 'global';
+  return `${FB_URL}/${prefix}/${DATE_KEY}${sub}.json`;
+}
+async function fbGet(sub='') {
+  if(!FB_URL) return null;
+  try { const r=await fetch(fbPath(sub),{cache:'no-store'}); return r.ok?await r.json():null; } catch{return null;}
+}
+async function fbPut(sub,val) {
+  if(!FB_URL) return;
+  try { await fetch(fbPath(sub),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)}); } catch{}
+}
+async function fbDel(sub='') {
+  if(!FB_URL) return;
+  try { await fetch(fbPath(sub),{method:'DELETE'}); } catch{}
+}
+
+async function poll() {
+  const data = await fbGet();
+  if(data!==null) {
+    taken={}; studentMap={}; answerMap={};
+    if(typeof data==='object'&&data) {
+      if(data.numbers) Object.keys(data.numbers).forEach(k=>{if(data.numbers[k]) taken[k]=true;});
+      if(data.students) studentMap={...data.students};
+      if(data.answers) answerMap={...data.answers};
+    }
+    setSyncStatus('g','synkad');
+    refresh();
+  }
+}
+function startPoll() {
+  if(pollTimer) clearInterval(pollTimer);
+  if(FB_URL) { poll(); pollTimer=setInterval(poll,3000); setSyncStatus('y','ansluter...'); }
+  else setSyncStatus('r','ej ansluten');
+}
+function setSyncStatus(c,t) {
+  document.getElementById('syncDot').className='dot '+c;
+  document.getElementById('syncTxt').textContent=t;
+}
+
+// ── Teacher color ─────────────────────────────────────────────
+function applyTeacherColor(color) {
+  document.documentElement.style.setProperty('--ta', color);
+}
+
+// ── Claim number ──────────────────────────────────────────────
+async function claimNum(n) {
+  const key = String(n);
+  if(taken[key]&&n!==myNum) { showLockedBanner(n); return; }
+  if(myNum&&myNum!==n) { delete taken[String(myNum)]; await fbDel(`/numbers/${String(myNum)}`); }
+  myNum=n; taken[key]=true;
+  await fbPut(`/numbers/${key}`,true);
+  bcast();
+  document.getElementById('lockedBanner').style.display='none';
+  showQuestion(n);
+  refresh();
+}
+
+function showLockedBanner(n) {
+  document.getElementById('lockedNum').textContent=n;
+  const free=QS.filter(q=>!taken[String(q.n)]);
+  document.getElementById('freeChips').innerHTML=free.map(q=>`<span class="chip" onclick="claimNum(${q.n})">${q.n}</span>`).join('');
+  const b=document.getElementById('lockedBanner');
+  b.style.display='block';
+  b.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function renderGrid() {
+  document.getElementById('qGrid').innerHTML=QS.map(q=>{
+    const key=String(q.n);
+    const isLocked=taken[key]&&q.n!==myNum;
+    const isMine=q.n===myNum;
+    const isOk=myResults[q.n]===true;
+    const isErr=myResults[q.n]===false;
+    let cls=isLocked?'locked':isOk?'done-ok':isErr?'done-err':isMine?'selected':'';
+    const lbl=isLocked?`${q.n}<br><span style="font-size:10px">🔒</span>`:String(q.n);
+    const ac=isLocked?`showLockedBanner(${q.n})`:`claimNum(${q.n})`;
+    return `<button class="qb ${cls}" onclick="${ac}" title="${q.topic}">${lbl}</button>`;
+  }).join('');
+}
+
+function showQuestion(n) {
+  const q=QS.find(x=>x.n===n); if(!q) return;
+  document.getElementById('qArea').style.display='block';
+  document.getElementById('summaryArea').style.display='none';
+  document.getElementById('qBadge').textContent='Fråga '+n;
+  document.getElementById('qTopic').textContent='📚 '+q.topic;
+  document.getElementById('qTxt').textContent=q.q;
+  const name=studentMap[String(n)];
+  const hi=document.getElementById('studentHi');
+  if(name){hi.textContent='👋 Hej '+name+'! Det här är din fråga.';hi.style.display='block';}else hi.style.display='none';
+  const ta=document.getElementById('answerInput');
+  ta.value=''; ta.disabled=myResults[n]!==undefined;
+  const prev=myResults[n];
+  document.getElementById('sFb').innerHTML=prev===true
+    ?'<div class="fb ok"><strong>✅ Rätt!</strong>Du har svarat rätt.</div>'
+    :prev===false?'<div class="fb err"><strong>❌ Fel.</strong>Välj nytt nummer för att försöka igen.</div>':'';
+  updateProg();
+}
+
+async function checkAnswer() {
+  if(!myNum) return;
+  const q=QS.find(x=>x.n===myNum);
+  const ans=document.getElementById('answerInput').value.toLowerCase().trim();
+  if(!ans){document.getElementById('sFb').innerHTML='<div class="fb err">⚠️ Skriv ett svar!</div>';return;}
+  const ok=q.kw.some(k=>ans.includes(k.toLowerCase()));
+  myResults[myNum]=ok;
+  document.getElementById('answerInput').disabled=true;
+  await fbPut(`/answers/${String(myNum)}`,ok?'ok':'err');
+  answerMap[String(myNum)]=ok?'ok':'err';
+  bcast();
+  document.getElementById('sFb').innerHTML=ok
+    ?`<div class="fb ok"><strong>✅ Rätt — bra jobbat!</strong>Ditt svar innehåller ett nyckelbegrepp.</div>`
+    :`<div class="fb err"><strong>❌ Inte riktigt.</strong>Svaret saknar ett nyckelbegrepp.<div class="hint-box">💡 Ledtråd: ${q.hint}</div></div>`;
+  refresh(); updateProg(); showSummaryIfDone();
+}
+
+function updateProg() {
+  const done=Object.keys(myResults).length;
+  document.getElementById('progFill').style.width=Math.round(done/QS.length*100)+'%';
+  document.getElementById('progLbl').textContent=done+' / '+QS.length+' besvarat';
+}
+
+function showSummaryIfDone() {
+  const done=Object.keys(myResults).length;if(done<1) return;
+  const correct=Object.values(myResults).filter(v=>v).length;
+  const pct=Math.round(correct/done*100);const pass=pct>=60;
+  document.getElementById('summaryArea').style.display='block';
+  const c=document.getElementById('scoreC');
+  c.className='score-c '+(pass?'pass':'fail');
+  c.innerHTML=`<div class="score-pct">${pct}%</div><div style="font-size:11px;color:var(--muted);margin-top:1px">${correct}/${done}</div>`;
+  document.getElementById('sumTitle').textContent=pass?'🎓 Klart!':'📚 Öva mer';
+  document.getElementById('sumText').textContent=pass?`Rätt på ${correct} av ${done}. Bra jobbat!`:`Rätt på ${correct} av ${done}. Repetera materialet.`;
+}
+function resetQ() { myNum=null; document.getElementById('qArea').style.display='none'; document.getElementById('lockedBanner').style.display='none'; refresh(); }
+
+// ── Teacher overview ──────────────────────────────────────────
+function renderOverview() {
+  const tbody=document.getElementById('ovBody'); if(!tbody) return;
+  let tc=0,ok=0,err=0;
+  tbody.innerHTML=QS.map(q=>{
+    const key=String(q.n);
+    const isTaken=taken[key];const name=studentMap[key]||'—';const ans=answerMap[key];
+    if(isTaken) tc++;if(ans==='ok') ok++;if(ans==='err') err++;
+    const st=isTaken?(ans==='ok'?'<span class="sbadge sb-ok">✅ Rätt</span>':ans==='err'?'<span class="sbadge sb-err">❌ Fel</span>':'<span class="sbadge sb-active">⏳ Arbetar</span>'):'<span class="sbadge sb-wait">Ledigt</span>';
+    return `<tr><td><strong>${q.n}</strong></td><td>${name}</td><td style="font-size:11px;color:var(--muted)">${q.topic}</td><td>${st}</td></tr>`;
+  }).join('');
+  const s=document.getElementById('ovStats');
+  if(s) s.textContent=`${tc} tagna · ${ok} rätt · ${err} fel · ${QS.length-tc} lediga`;
+}
+
+async function resetAll() {
+  if(!confirm('Frigör alla nummer? Påverkar alla elever direkt.')) return;
+  taken={}; answerMap={}; myNum=null; myResults={};
+  await fbDel(); bcast(); refresh();
+}
+
+// ── Student assignment ────────────────────────────────────────
+function loadStuFile(input) {
+  const f=input.files[0]; if(!f) return;
+  new FileReader().onload=(e)=>{document.getElementById('stuInput').value=e.target.result;};
+  new FileReader().readAsText(f,'UTF-8');
+}
+function assignNumbers() {
+  const raw=document.getElementById('stuInput').value.trim();
+  if(!raw){document.getElementById('stuFb').innerHTML='<div class="fb err">Inga namn.</div>';return;}
+  const names=raw.split('\n').map(n=>n.trim()).filter(n=>n);
+  if(names.length>QS.length){document.getElementById('stuFb').innerHTML=`<div class="fb err">För många elever (${names.length}) — bara ${QS.length} frågor. Generera fler frågor eller ta bort namn.</div>`;return;}
+  const shuffled=[...names].sort(()=>Math.random()-0.5);
+  const map={};shuffled.forEach((name,i)=>{map[String(QS[i].n)]=name;});
+  pendingAssign=map;
+  document.getElementById('assignCard').style.display='block';
+  document.getElementById('assignList').innerHTML=Object.keys(map).sort((a,b)=>+a-+b).map(n=>{
+    const q=QS.find(x=>x.n===+n);
+    return `<div class="stu-row"><div class="stu-num">${n}</div><div><div style="font-weight:600;font-size:13px">${map[n]}</div><div style="font-size:11px;color:var(--muted)">${q?q.topic:''}</div></div></div>`;
+  }).join('');
+  document.getElementById('stuFb').innerHTML=`<div class="fb ok">✅ ${names.length} elever fördelade! Klicka "Spara" för att aktivera.</div>`;
+}
+async function saveAssignment() {
+  if(!pendingAssign) return;
+  studentMap={...pendingAssign};
+  await fbPut('/students',studentMap);
+  bcast();
+  document.getElementById('stuFb').innerHTML='<div class="fb ok">✅ Sparat! Eleverna ser nu sitt namn vid checkout.</div>';
+}
+function clearStudents() {
+  document.getElementById('stuInput').value='';
+  document.getElementById('assignCard').style.display='none';
+  document.getElementById('stuFb').innerHTML='';
+  pendingAssign=null;
+}
+
+// ── AI Questions ──────────────────────────────────────────────
+function loadMatFile(input) {
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{document.getElementById('matInput').value=e.target.result;};
+  r.readAsText(f,'UTF-8');
+}
+async function generateQ() {
+  const mat=document.getElementById('matInput').value.trim();
+  if(!mat||mat.length<50){document.getElementById('genErr').style.display='block';document.getElementById('genErr').innerHTML='<strong>⚠️</strong>Klistra in minst 50 tecken material.';return;}
+  const numQ=parseInt(document.getElementById('numQSel').value);
+  document.getElementById('genStatus').style.display='block';
+  document.getElementById('genErr').style.display='none';
+  document.getElementById('prevSec').style.display='none';
+  document.getElementById('genBtn').disabled=true;
+  const prompt=`Du är en pedagogisk expert som skapar exit-check-frågor för gymnasieelever.
+Baserat på följande undervisningsmaterial, skapa exakt ${numQ} faktafrågor på svenska.
+KRAV per fråga:
+- Kort tydlig faktafråga (max 2 meningar)
+- Exakt 3 nyckelord/fraser som MÅSTE finnas i ett korrekt svar
+- En ledtråd vid fel svar (max 8 ord)
+- Ämnesblock/topic (2–4 ord)
+- Numrering 1 till ${numQ}
+SVARA BARA med ett JSON-array, ingen markdown, inga förklaringar:
+[{"n":1,"topic":"Ämne","q":"Frågan?","kw":["kw1","kw2","kw3"],"hint":"Ledtråd"}]
+MATERIAL:
+${mat.substring(0,6000)}`;
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    if(!data.content||!data.content[0]) throw new Error('Tomt svar');
+    const raw=data.content.filter(c=>c.type==='text').map(c=>c.text).join('');
+    const clean=raw.replace(/```json|```/g,'').trim();
+    const s=clean.indexOf('['),e=clean.lastIndexOf(']');
+    if(s===-1||e===-1) throw new Error('Inget JSON-array hittades');
+    const parsed=JSON.parse(clean.substring(s,e+1));
+    if(!Array.isArray(parsed)||!parsed.length) throw new Error('Ogiltigt format');
+    generatedQS=parsed;
+    document.getElementById('prevSec').style.display='block';
+    document.getElementById('prevList').innerHTML=parsed.map(q=>`
+      <div class="qprev">
+        <div class="qprev-n">Fråga ${q.n} · ${q.topic}</div>
+        <div class="qprev-q">${q.q}</div>
+        <div class="qprev-kw">🔑 ${q.kw.join(', ')} &nbsp;·&nbsp; 💡 ${q.hint}</div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('genErr').style.display='block';
+    document.getElementById('genErr').innerHTML=`<strong>❌ Fel:</strong> ${e.message}. Försök igen.`;
+  }
+  document.getElementById('genStatus').style.display='none';
+  document.getElementById('genBtn').disabled=false;
+}
+async function activateQ() {
+  if(!generatedQS||!activeTeacher) return;
+  QS=generatedQS; saveTeacherQS(activeTeacher,QS);
+  if(FB_URL) await fbPut('/questions',JSON.stringify(QS));
+  taken={}; answerMap={}; myNum=null;
+  await fbDel('/numbers');
+  document.getElementById('actFb').innerHTML='<div class="fb ok">✅ Frågorna aktiverade! Alla gamla svar nollställda.</div>';
+  updateActiveQInfo(); refresh();
+}
+function resetToDefault() {
+  if(!confirm('Återställ till standardfrågor?')) return;
+  QS=DEFAULT_QS; if(activeTeacher) saveTeacherQS(activeTeacher,null);
+  localStorage.removeItem(`qs_${activeTeacher}`);
+  taken={}; answerMap={}; myNum=null;
+  updateActiveQInfo(); refresh();
+  alert('✅ Återställt!');
+}
+function updateActiveQInfo() {
+  const el=document.getElementById('activeQInfo'); if(!el) return;
+  const isCustom=activeTeacher&&localStorage.getItem(`qs_${activeTeacher}`)!==null;
+  el.innerHTML=isCustom
+    ?`<span style="color:var(--pu);font-weight:600">✨ Anpassade frågor aktiva</span> — ${QS.length} frågor`
+    :'<span style="color:var(--muted)">Standard: Privatekonomi 1a Gy25 — 25 frågor</span>';
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+function renderLoginSelect() {
+  const accs=loadAccounts();
+  const sel=document.getElementById('loginSelect');
+  sel.innerHTML='<option value="">— välj —</option>'+Object.keys(accs).map(u=>`<option value="${u}">${accs[u].displayName} — ${accs[u].subject}</option>`).join('');
+}
+
+function renderColorSwatches() {
+  const wrap=document.getElementById('colorSwatches');
+  if(!wrap) return;
+  wrap.innerHTML=COLORS.map((c,i)=>`<div class="swatch${i===0?' active':''}" style="background:${c}" onclick="selectSwatchColor('${c}',this)"></div>`).join('');
+}
+
+function selectSwatchColor(c, el) {
+  selectedColor=c;
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function showView(id) {
+  document.getElementById('loginView').style.display='none';
+  document.getElementById('createView').style.display='none';
+  document.getElementById(id).style.display='block';
+  if(id==='loginView') renderLoginSelect();
+  if(id==='createView') renderColorSwatches();
+}
+
+function doLogin() {
+  const accs=loadAccounts();
+  const user=document.getElementById('loginSelect').value;
+  const pw=document.getElementById('loginPw').value;
+  if(!user||!accs[user]){document.getElementById('loginErr').style.display='block';document.getElementById('loginErr').innerHTML='<strong>Välj ett konto.</strong>';return;}
+  if(accs[user].password!==pw){document.getElementById('loginErr').style.display='block';document.getElementById('loginErr').innerHTML='<strong>Fel lösenord.</strong>';return;}
+  activeTeacher=user;
+  const acc=accs[user];
+  QS=getTeacherQS(user);
+  applyTeacherColor(acc.color||COLORS[0]);
+  document.getElementById('authSection').style.display='none';
+  document.getElementById('dashSection').style.display='block';
+  document.getElementById('dashTitle').textContent=`${acc.displayName} — ${acc.subject}`;
+  // Show strip in nav
+  const strip=document.getElementById('teacherStrip');
+  strip.style.display='inline-block';
+  strip.textContent=`${acc.displayName} · ${acc.subject}`;
+  renderOverview(); updateActiveQInfo();
+  document.getElementById('myAccountInfo').innerHTML=`<strong>Användare:</strong> ${user}<br><strong>Ämne:</strong> ${acc.subject}`;
+  if(FB_URL) document.getElementById('fbUrlInput').value=FB_URL;
+  document.getElementById('loginPw').value='';
+  document.getElementById('loginErr').style.display='none';
+  // Student URL
+  const url=`${location.href.split('?')[0]}?t=${user}`;
+  document.getElementById('copyUrlFeedback') && (document.getElementById('copyUrlFeedback').textContent='');
+}
+
+function doLogout() {
+  activeTeacher=null;
+  applyTeacherColor(urlTeacher ? (loadAccounts()[urlTeacher]?.color||COLORS[0]) : COLORS[0]);
+  document.getElementById('dashSection').style.display='none';
+  document.getElementById('authSection').style.display='block';
+  document.getElementById('teacherStrip').style.display='none';
+  showView('loginView');
+}
+
+function createAccount() {
+  const user=document.getElementById('cUser').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const name=document.getElementById('cName').value.trim();
+  const subj=document.getElementById('cSubject').value.trim();
+  const pw=document.getElementById('cPw').value;
+  const pw2=document.getElementById('cPw2').value;
+  if(!user||!name||!subj||!pw){document.getElementById('createErr').innerHTML='<strong>Fyll i alla fält.</strong>';document.getElementById('createErr').style.display='block';return;}
+  if(!/^[a-z0-9_]+$/.test(user)){document.getElementById('createErr').innerHTML='<strong>Användarnamn:</strong> bara a-z, 0-9 och _';document.getElementById('createErr').style.display='block';return;}
+  if(pw!==pw2){document.getElementById('createErr').innerHTML='<strong>Lösenorden matchar inte.</strong>';document.getElementById('createErr').style.display='block';return;}
+  if(pw.length<4){document.getElementById('createErr').innerHTML='<strong>Minst 4 tecken.</strong>';document.getElementById('createErr').style.display='block';return;}
+  const accs=loadAccounts();
+  if(accs[user]){document.getElementById('createErr').innerHTML='<strong>Användarnamnet är upptaget.</strong>';document.getElementById('createErr').style.display='block';return;}
+  accs[user]={displayName:name,subject:subj,password:pw,color:selectedColor,createdAt:new Date().toISOString().slice(0,10)};
+  saveAccounts(accs);
+  document.getElementById('createErr').style.display='none';
+  alert(`✅ Konto "${name}" skapat! Elevlänken blir: ${location.href.split('?')[0]}?t=${user}`);
+  showView('loginView');
+}
+
+function manageAccounts() {
+  document.getElementById('dashSection').style.display='none';
+  document.getElementById('accountsMgmt').style.display='block';
+  const accs=loadAccounts();
+  const list=document.getElementById('accountsList');
+  const url=location.href.split('?')[0];
+  list.innerHTML=Object.entries(accs).map(([u,a])=>`
+    <div class="account-row">
+      <div class="acc-avatar" style="background:${a.color||COLORS[0]}">${a.displayName.charAt(0)}</div>
+      <div style="flex:1">
+        <div class="acc-name">${a.displayName}</div>
+        <div class="acc-subject">${a.subject} · @${u}</div>
+        <div class="acc-url">Elevlänk: ${url}?t=${u}</div>
+      </div>
+      <button class="btn btn-sm btn-sec" onclick="copyText('${url}?t=${u}',this)">📋 Kopiera länk</button>
+    </div>`).join('') || '<div style="color:var(--muted);font-size:13px">Inga konton skapade än.</div>';
+  // Delete select
+  const delSel=document.getElementById('delAccSelect');
+  delSel.innerHTML=Object.entries(accs).filter(([u])=>u!==activeTeacher).map(([u,a])=>`<option value="${u}">${a.displayName} (${u})</option>`).join('');
+}
+
+function deleteAccount() {
+  const u=document.getElementById('delAccSelect').value;
+  if(!u){alert('Välj ett konto.');return;}
+  const accs=loadAccounts();
+  if(!accs[u]){alert('Kontot finns inte.');return;}
+  if(!confirm(`Ta bort kontot "${accs[u].displayName}"? Kan inte ångras.`)) return;
+  delete accs[u];
+  saveAccounts(accs);
+  localStorage.removeItem(`qs_${u}`);
+  manageAccounts();
+}
+
+function copyStudentLink() {
+  const url=`${location.href.split('?')[0]}?t=${activeTeacher}`;
+  copyText(url,null);
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(()=>{
+    if(btn){const orig=btn.textContent;btn.textContent='✅ Kopierad!';setTimeout(()=>btn.textContent=orig,2000);}
+    else alert('Länk kopierad: '+text);
+  }).catch(()=>{prompt('Kopiera denna länk:',text);});
+}
+
+function changePw() {
+  const val=document.getElementById('newPw').value.trim();
+  if(val.length<4){document.getElementById('pwChSt').textContent='Minst 4 tecken.';return;}
+  const accs=loadAccounts();
+  if(accs[activeTeacher]) accs[activeTeacher].password=val;
+  saveAccounts(accs);
+  document.getElementById('pwChSt').textContent='✅ Lösenordet ändrat!';
+  document.getElementById('newPw').value='';
+}
+
+// ── Firebase settings ─────────────────────────────────────────
+function saveFbUrl() {
+  const v=document.getElementById('fbUrlInput').value.trim().replace(/\/$/,'');
+  if(!v.startsWith('https://')||!v.includes('firebaseio.com')){alert('Kontrollera URL:en');return;}
+  FB_URL=v; localStorage.setItem('fb_url',v);
+  startPoll(); alert('✅ Sparat!');
+}
+function clearFbUrl() {
+  FB_URL=''; localStorage.removeItem('fb_url');
+  if(pollTimer) clearInterval(pollTimer);
+  setSyncStatus('r','ej ansluten');
+  document.getElementById('fbUrlInput').value='';
+}
+
+// ── Section tabs ──────────────────────────────────────────────
+function showSec(id, el) {
+  document.querySelectorAll('[id^="sec-"]').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.sec-tab').forEach(t=>t.classList.remove('active'));
+  const sec=document.getElementById('sec-'+id);
+  if(sec) sec.style.display='block';
+  if(el) el.classList.add('active');
+  if(id==='overview') renderOverview();
+  if(id==='aiGen') updateActiveQInfo();
+  if(id==='dsettings' && FB_URL) document.getElementById('fbUrlInput').value=FB_URL;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function showTab(id, el) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id+'Panel').classList.add('active');
+  if(el){el.classList.add('active');}
+  if(id==='print') renderSlips();
+  if(id==='teacher') {
+    if(!activeTeacher) showView('loginView');
+    else { document.getElementById('authSection').style.display='none'; document.getElementById('dashSection').style.display='block'; renderOverview(); }
+  }
+}
+
+// ── Print ─────────────────────────────────────────────────────
+function renderSlips() {
+  document.getElementById('slipsGrid').innerHTML=QS.map(q=>`
+    <div class="slip">
+      <div class="slip-hd"><span class="slip-n">LAPP ${q.n}</span><span class="slip-tp">${q.topic}</span></div>
+      <div class="slip-q">${q.q}</div>
+      <div class="slip-hr"></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:2px">Ditt svar:</div>
+      <div class="slip-wr"></div>
+      <div style="font-size:9px;color:#B0BCC8;margin-top:2px">${new Date().toLocaleDateString('sv-SE')}</div>
+    </div>`).join('');
+}
+
+// ── Refresh ───────────────────────────────────────────────────
+function refresh() {
+  renderGrid();
+  if(activeTeacher && document.getElementById('sec-overview') && document.getElementById('sec-overview').style.display!=='none') renderOverview();
+}
+
+// ── Init ──────────────────────────────────────────────────────
+// If URL has teacher param, load their questions
+if(urlTeacher) {
+  const accs=loadAccounts();
+  if(accs[urlTeacher]) {
+    QS=getTeacherQS(urlTeacher);
+    applyTeacherColor(accs[urlTeacher].color||COLORS[0]);
+    document.getElementById('studentTitle').textContent=`EXIT-CHECK — ${accs[urlTeacher].subject}`;
+    document.getElementById('noTeacherWarn').style.display='none';
+  } else {
+    document.getElementById('noTeacherWarn').style.display='block';
+  }
+} else if(!urlTeacher) {
+  document.getElementById('noTeacherWarn').style.display='block';
+}
+
+renderLoginSelect();
+renderGrid();
+startPoll();
+</script>
+</body>
+</html>
